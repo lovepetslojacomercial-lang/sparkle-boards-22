@@ -1,15 +1,10 @@
-import { useState } from 'react';
 import { AppSidebar } from '@/components/AppSidebar';
 import { KanbanBoard } from '@/components/KanbanBoard';
-import { mockBoard, mockWorkspaces } from '@/data/mockData';
+import { useKanbanStore } from '@/store/kanbanStore';
 
 const Index = () => {
-  const [activeBoard, setActiveBoard] = useState('board-1');
-
-  // Find the active board from all workspaces
-  const currentBoard = mockWorkspaces
-    .flatMap((ws) => ws.boards)
-    .find((board) => board.id === activeBoard);
+  const { activeBoard, setActiveBoard, getCurrentBoard } = useKanbanStore();
+  const currentBoard = getCurrentBoard();
 
   return (
     <div className="flex min-h-screen w-full bg-background">

@@ -1,18 +1,19 @@
-import { useState } from 'react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { Plus, MoreHorizontal, Search, Filter } from 'lucide-react';
 import { KanbanColumn } from './KanbanColumn';
 import { CardModal } from './CardModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { KanbanBoard as KanbanBoardType, KanbanCard, KanbanColumn as KanbanColumnType } from '@/types/kanban';
+import { KanbanBoard as KanbanBoardType, KanbanCard } from '@/types/kanban';
+import { useKanbanStore } from '@/store/kanbanStore';
+import { useState } from 'react';
 
 interface KanbanBoardProps {
   board: KanbanBoardType;
 }
 
-export function KanbanBoard({ board: initialBoard }: KanbanBoardProps) {
-  const [board, setBoard] = useState(initialBoard);
+export function KanbanBoard({ board }: KanbanBoardProps) {
+  const { moveCard } = useKanbanStore();
   const [selectedCard, setSelectedCard] = useState<KanbanCard | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -28,41 +29,13 @@ export function KanbanBoard({ board: initialBoard }: KanbanBoardProps) {
       return;
     }
 
-    const sourceColumn = board.columns.find((col) => col.id === source.droppableId);
-    const destColumn = board.columns.find((col) => col.id === destination.droppableId);
-
-    if (!sourceColumn || !destColumn) return;
-
-    const draggedCard = sourceColumn.cards.find((card) => card.id === draggableId);
-    if (!draggedCard) return;
-
-    // Same column reorder
-    if (source.droppableId === destination.droppableId) {
-      const newCards = Array.from(sourceColumn.cards);
-      newCards.splice(source.index, 1);
-      newCards.splice(destination.index, 0, draggedCard);
-
-      const newColumns = board.columns.map((col) =>
-        col.id === sourceColumn.id ? { ...col, cards: newCards } : col
-      );
-
-      setBoard({ ...board, columns: newColumns });
-    } else {
-      // Moving between columns
-      const sourceCards = Array.from(sourceColumn.cards);
-      sourceCards.splice(source.index, 1);
-
-      const destCards = Array.from(destColumn.cards);
-      destCards.splice(destination.index, 0, draggedCard);
-
-      const newColumns = board.columns.map((col) => {
-        if (col.id === sourceColumn.id) return { ...col, cards: sourceCards };
-        if (col.id === destColumn.id) return { ...col, cards: destCards };
-        return col;
-      });
-
-      setBoard({ ...board, columns: newColumns });
-    }
+    moveCard(
+      draggableId,
+      source.droppableId,
+      destination.droppableId,
+      source.index,
+      destination.index
+    );
   };
 
   const handleCardClick = (card: KanbanCard) => {
@@ -74,6 +47,17 @@ export function KanbanBoard({ board: initialBoard }: KanbanBoardProps) {
     setIsModalOpen(false);
     setSelectedCard(null);
   };
+
+  // Get fresh card data from the store when modal is open
+  const getCardFromBoard = (cardId: string): KanbanCard | null => {
+    for (const column of board.columns) {
+      const found = column.cards.find((c) => c.id === cardId);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const currentCard = selectedCard ? getCardFromBoard(selectedCard.id) : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -117,6 +101,7 @@ export function KanbanBoard({ board: initialBoard }: KanbanBoardProps) {
                 key={column.id}
                 column={column}
                 onCardClick={handleCardClick}
+                fieldDefinitions={board.fieldDefinitions}
               />
             ))}
 
@@ -131,7 +116,7 @@ export function KanbanBoard({ board: initialBoard }: KanbanBoardProps) {
 
       {/* Card Modal */}
       <CardModal
-        card={selectedCard}
+        card={currentCard}
         open={isModalOpen}
         onClose={handleCloseModal}
       />

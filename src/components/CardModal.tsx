@@ -10,6 +10,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
   Calendar,
   User,
   Flag,
@@ -20,9 +33,12 @@ import {
   CalendarDays,
   List,
   CheckSquare,
+  Trash2,
 } from 'lucide-react';
-import { KanbanCard } from '@/types/kanban';
+import { KanbanCard, FieldDefinition, FieldType, FieldValue } from '@/types/kanban';
+import { useKanbanStore } from '@/store/kanbanStore';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface CardModalProps {
   card: KanbanCard | null;
@@ -48,7 +64,7 @@ const labelColors: Record<string, string> = {
   testing: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
 };
 
-const fieldTypeIcons = {
+const fieldTypeIcons: Record<FieldType, React.ElementType> = {
   text: Type,
   number: Hash,
   date: CalendarDays,
@@ -56,8 +72,132 @@ const fieldTypeIcons = {
   checkbox: CheckSquare,
 };
 
+const fieldTypeLabels: Record<FieldType, string> = {
+  text: 'Texto',
+  number: 'Número',
+  date: 'Data',
+  select: 'Seleção',
+  checkbox: 'Checkbox',
+};
+
 export function CardModal({ card, open, onClose }: CardModalProps) {
+  const { getCurrentBoard, addFieldDefinition, setCardFieldValue, updateCard, deleteFieldDefinition } = useKanbanStore();
+  const [isAddingField, setIsAddingField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState('');
+  const [newFieldType, setNewFieldType] = useState<FieldType>('text');
+  const [newFieldOptions, setNewFieldOptions] = useState('');
+  const [showOnCard, setShowOnCard] = useState(true);
+
+  const board = getCurrentBoard();
+
   if (!card) return null;
+
+  const handleAddField = () => {
+    if (!board || !newFieldName.trim()) return;
+
+    const field: Omit<FieldDefinition, 'id'> = {
+      name: newFieldName.trim(),
+      type: newFieldType,
+      showOnCard,
+      ...(newFieldType === 'select' && {
+        options: newFieldOptions.split(',').map((o) => o.trim()).filter(Boolean),
+      }),
+    };
+
+    addFieldDefinition(board.id, field);
+    setNewFieldName('');
+    setNewFieldType('text');
+    setNewFieldOptions('');
+    setShowOnCard(true);
+    setIsAddingField(false);
+  };
+
+  const handleFieldValueChange = (fieldId: string, value: FieldValue) => {
+    setCardFieldValue(card.id, fieldId, value);
+  };
+
+  const handlePriorityChange = (priority: 'low' | 'medium' | 'high') => {
+    updateCard(card.id, { priority });
+  };
+
+  const handleDescriptionChange = (description: string) => {
+    updateCard(card.id, { description });
+  };
+
+  const handleAssigneeChange = (assignee: string) => {
+    updateCard(card.id, { assignee });
+  };
+
+  const handleDueDateChange = (dueDate: string) => {
+    updateCard(card.id, { dueDate });
+  };
+
+  const renderFieldInput = (field: FieldDefinition) => {
+    const value = card.fieldValues?.[field.id];
+
+    switch (field.type) {
+      case 'text':
+        return (
+          <Input
+            value={(value as string) || ''}
+            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            placeholder="Digite..."
+            className="h-8 flex-1"
+          />
+        );
+      case 'number':
+        return (
+          <Input
+            type="number"
+            value={(value as number) ?? ''}
+            onChange={(e) => handleFieldValueChange(field.id, e.target.value ? Number(e.target.value) : null)}
+            placeholder="0"
+            className="h-8 flex-1"
+          />
+        );
+      case 'date':
+        return (
+          <Input
+            type="date"
+            value={(value as string) || ''}
+            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            className="h-8 flex-1"
+          />
+        );
+      case 'checkbox':
+        return (
+          <div className="flex items-center gap-2 flex-1">
+            <Checkbox
+              checked={Boolean(value)}
+              onCheckedChange={(checked) => handleFieldValueChange(field.id, checked)}
+            />
+            <span className="text-sm text-muted-foreground">
+              {value ? 'Marcado' : 'Não marcado'}
+            </span>
+          </div>
+        );
+      case 'select':
+        return (
+          <Select
+            value={(value as string) || ''}
+            onValueChange={(v) => handleFieldValueChange(field.id, v)}
+          >
+            <SelectTrigger className="h-8 flex-1">
+              <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options?.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -103,7 +243,8 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
               Descrição
             </h4>
             <Textarea
-              defaultValue={card.description}
+              value={card.description || ''}
+              onChange={(e) => handleDescriptionChange(e.target.value)}
               placeholder="Adicione uma descrição mais detalhada..."
               className="min-h-[100px] resize-none"
             />
@@ -120,7 +261,8 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
                 Responsável
               </h4>
               <Input
-                defaultValue={card.assignee || ''}
+                value={card.assignee || ''}
+                onChange={(e) => handleAssigneeChange(e.target.value)}
                 placeholder="Selecionar..."
                 className="h-9"
               />
@@ -134,7 +276,8 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
               </h4>
               <Input
                 type="date"
-                defaultValue={card.dueDate}
+                value={card.dueDate || ''}
+                onChange={(e) => handleDueDateChange(e.target.value)}
                 className="h-9"
               />
             </div>
@@ -149,6 +292,7 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
                 {(['low', 'medium', 'high'] as const).map((priority) => (
                   <button
                     key={priority}
+                    onClick={() => handlePriorityChange(priority)}
                     className={cn(
                       'px-3 py-1.5 rounded-md text-xs font-medium transition-all',
                       card.priority === priority
@@ -173,24 +317,30 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
               </h4>
             </div>
 
-            {/* Existing Custom Fields */}
-            {card.customFields && card.customFields.length > 0 && (
+            {/* Board-level Custom Fields */}
+            {board?.fieldDefinitions && board.fieldDefinitions.length > 0 && (
               <div className="space-y-3 mb-4">
-                {card.customFields.map((field) => {
-                  const IconComponent = fieldTypeIcons[field.type];
+                {board.fieldDefinitions.map((field) => {
+                  const IconComponent = fieldTypeIcons[field.type] || Type;
                   return (
                     <div
                       key={field.id}
-                      className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
+                      className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg group"
                     >
                       <IconComponent className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium min-w-[100px]">
+                      <span className="text-sm font-medium min-w-[120px]">
                         {field.name}
+                        {field.showOnCard && (
+                          <span className="ml-1 text-xs text-primary">●</span>
+                        )}
                       </span>
-                      <Input
-                        defaultValue={String(field.value)}
-                        className="h-8 flex-1"
-                      />
+                      {renderFieldInput(field)}
+                      <button
+                        onClick={() => deleteFieldDefinition(board.id, field.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   );
                 })}
@@ -198,41 +348,124 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
             )}
 
             {/* Add Property Button - The Differential */}
-            <Button
-              variant="outline"
-              className="w-full border-dashed border-2 hover:border-primary hover:bg-primary/5 transition-all"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Propriedade
-            </Button>
-
-            {/* Field Type Hints */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {Object.entries(fieldTypeIcons).map(([type, Icon]) => (
-                <span
-                  key={type}
-                  className="inline-flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground bg-muted/50 rounded"
+            <Popover open={isAddingField} onOpenChange={setIsAddingField}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full border-dashed border-2 hover:border-primary hover:bg-primary/5 transition-all"
                 >
-                  <Icon className="w-3 h-3" />
-                  {type === 'text' && 'Texto'}
-                  {type === 'number' && 'Número'}
-                  {type === 'date' && 'Data'}
-                  {type === 'select' && 'Seleção'}
-                  {type === 'checkbox' && 'Checkbox'}
-                </span>
-              ))}
-            </div>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Propriedade
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4" align="start">
+                <div className="space-y-4">
+                  <h4 className="font-medium text-sm">Nova Propriedade</h4>
+                  
+                  {/* Field Name */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Nome do Campo
+                    </label>
+                    <Input
+                      value={newFieldName}
+                      onChange={(e) => setNewFieldName(e.target.value)}
+                      placeholder="Ex: Status do Cliente"
+                      className="h-9"
+                    />
+                  </div>
+                  
+                  {/* Field Type */}
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">
+                      Tipo
+                    </label>
+                    <div className="grid grid-cols-5 gap-1">
+                      {(Object.keys(fieldTypeIcons) as FieldType[]).map((type) => {
+                        const Icon = fieldTypeIcons[type];
+                        return (
+                          <button
+                            key={type}
+                            onClick={() => setNewFieldType(type)}
+                            className={cn(
+                              'flex flex-col items-center gap-1 p-2 rounded-lg text-xs transition-all',
+                              newFieldType === type
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                            )}
+                          >
+                            <Icon className="w-4 h-4" />
+                            <span className="text-[10px]">{fieldTypeLabels[type]}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* Options for Select type */}
+                  {newFieldType === 'select' && (
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">
+                        Opções (separadas por vírgula)
+                      </label>
+                      <Input
+                        value={newFieldOptions}
+                        onChange={(e) => setNewFieldOptions(e.target.value)}
+                        placeholder="Alta, Média, Baixa"
+                        className="h-9"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Show on Card */}
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="showOnCard"
+                      checked={showOnCard}
+                      onCheckedChange={(checked) => setShowOnCard(Boolean(checked))}
+                    />
+                    <label htmlFor="showOnCard" className="text-sm">
+                      Mostrar no card (preview)
+                    </label>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddingField(false)}
+                      className="flex-1"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleAddField}
+                      disabled={!newFieldName.trim()}
+                      className="flex-1"
+                    >
+                      Criar Campo
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Info about field visibility */}
+            {board?.fieldDefinitions && board.fieldDefinitions.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-3">
+                <span className="text-primary">●</span> = Visível no card
+              </p>
+            )}
           </div>
 
           <Separator />
 
           {/* Actions */}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button>
-              Salvar Alterações
+            <Button onClick={onClose}>
+              Fechar
             </Button>
           </div>
         </div>

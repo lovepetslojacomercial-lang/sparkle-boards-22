@@ -8,7 +8,7 @@ import {
   Plus,
   Kanban,
 } from 'lucide-react';
-import { mockWorkspaces } from '@/data/mockData';
+import { useKanbanStore } from '@/store/kanbanStore';
 import { cn } from '@/lib/utils';
 
 interface AppSidebarProps {
@@ -18,6 +18,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>(['workspace-1']);
+  const { workspaces } = useKanbanStore();
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaces((prev) =>
@@ -62,7 +63,7 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
             </button>
           </div>
 
-          {mockWorkspaces.map((workspace) => (
+          {workspaces.map((workspace) => (
             <div key={workspace.id} className="space-y-0.5">
               <button
                 onClick={() => toggleWorkspace(workspace.id)}
