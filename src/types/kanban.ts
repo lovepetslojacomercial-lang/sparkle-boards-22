@@ -6,14 +6,19 @@ export interface KanbanCard {
   priority?: 'low' | 'medium' | 'high';
   assignee?: string;
   dueDate?: string;
-  customFields?: CustomField[];
+  fieldValues?: Record<string, FieldValue>; // fieldDefinitionId -> value
 }
 
-export interface CustomField {
+export type FieldValue = string | number | boolean | string[] | null;
+
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'checkbox';
+
+export interface FieldDefinition {
   id: string;
   name: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'checkbox';
-  value: string | number | boolean;
+  type: FieldType;
+  options?: string[]; // For select type
+  showOnCard?: boolean; // Show preview on card
 }
 
 export interface KanbanColumn {
@@ -27,6 +32,7 @@ export interface KanbanBoard {
   id: string;
   name: string;
   columns: KanbanColumn[];
+  fieldDefinitions: FieldDefinition[]; // Board-level custom fields
 }
 
 export interface Workspace {

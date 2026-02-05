@@ -1,12 +1,14 @@
 import { Calendar, User, Flag } from 'lucide-react';
-import { KanbanCard as KanbanCardType } from '@/types/kanban';
+import { KanbanCard as KanbanCardType, FieldDefinition } from '@/types/kanban';
 import { cn } from '@/lib/utils';
 import { Draggable } from '@hello-pangea/dnd';
+import { CheckSquare, Hash, Type, CalendarDays, List } from 'lucide-react';
 
 interface KanbanCardProps {
   card: KanbanCardType;
   index: number;
   onClick: () => void;
+  fieldDefinitions?: FieldDefinition[];
 }
 
 const priorityColors = {
@@ -27,7 +29,20 @@ const labelColors: Record<string, string> = {
   testing: 'bg-yellow-100 text-yellow-700',
 };
 
-export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
+const fieldTypeIcons = {
+  text: Type,
+  number: Hash,
+  date: CalendarDays,
+  select: List,
+  checkbox: CheckSquare,
+};
+
+export function KanbanCard({ card, index, onClick, fieldDefinitions = [] }: KanbanCardProps) {
+  // Get fields that should be shown on card
+  const visibleFields = fieldDefinitions.filter(
+    (field) => field.showOnCard && card.fieldValues?.[field.id] !== undefined && card.fieldValues?.[field.id] !== null && card.fieldValues?.[field.id] !== ''
+  );
+
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -70,6 +85,38 @@ export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
             </p>
           )}
 
+          {/* Custom Field Previews */}
+          {visibleFields.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {visibleFields.map((field) => {
+                const value = card.fieldValues?.[field.id];
+                const Icon = fieldTypeIcons[field.type];
+                
+                // Format value based on type
+                let displayValue: string;
+                if (field.type === 'checkbox') {
+                  displayValue = value ? '✓' : '✗';
+                } else if (field.type === 'date' && value) {
+                  displayValue = new Date(value as string).toLocaleDateString('pt-BR');
+                } else {
+                  displayValue = String(value);
+                }
+                
+                return (
+                  <span
+                    key={field.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-primary/10 text-primary border border-primary/20"
+                  >
+                    <Icon className="w-3 h-3" />
+                    <span className="font-medium truncate max-w-[80px]" title={`${field.name}: ${displayValue}`}>
+                      {displayValue}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           {/* Footer with metadata */}
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -86,7 +133,7 @@ export function KanbanCard({ card, index, onClick }: KanbanCardProps) {
               {card.dueDate && (
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  {card.dueDate}
+                  {new Date(card.dueDate).toLocaleDateString('pt-BR')}
                 </span>
               )}
             </div>
