@@ -1,10 +1,17 @@
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, Filter, X } from 'lucide-react';
+import { Plus, Search, Filter, X, Tag } from 'lucide-react';
 import { KanbanColumn } from './KanbanColumn';
 import { CardModal } from './CardModal';
 import { NewCardModal } from './NewCardModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import { KanbanBoard as KanbanBoardType, KanbanCard } from '@/types/kanban';
 import { useKanbanStore } from '@/store/kanbanStore';
 import { useState, useRef, useEffect, useMemo } from 'react';
@@ -21,6 +28,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [isNewCardModalOpen, setIsNewCardModalOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const columnInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -29,23 +37,58 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
     }
   }, [isAddingColumn]);
 
-  // Filter cards based on search query
+  // Get all unique tags from all cards
+  const allTags = useMemo(() => {
+    const tags = new Set<string>();
+    board.columns.forEach((column) => {
+      column.cards.forEach((card) => {
+        card.labels?.forEach((label) => tags.add(label));
+      });
+    });
+    return Array.from(tags).sort();
+  }, [board.columns]);
+
+  // Filter cards based on search query AND selected tags
   const filteredColumns = useMemo(() => {
-    if (!searchQuery.trim()) return board.columns;
+    const hasSearch = searchQuery.trim().length > 0;
+    const hasTagFilter = selectedTags.length > 0;
+
+    if (!hasSearch && !hasTagFilter) return board.columns;
 
     const query = searchQuery.toLowerCase();
+
     return board.columns.map((column) => ({
       ...column,
-      cards: column.cards.filter(
-        (card) =>
+      cards: column.cards.filter((card) => {
+        // Search filter
+        const matchesSearch =
+          !hasSearch ||
           card.title.toLowerCase().includes(query) ||
-          card.description?.toLowerCase().includes(query)
-      ),
+          card.description?.toLowerCase().includes(query);
+
+        // Tag filter (OR logic - card has at least one selected tag)
+        const matchesTags =
+          !hasTagFilter ||
+          selectedTags.some((tag) => card.labels?.includes(tag));
+
+        return matchesSearch && matchesTags;
+      }),
     }));
-  }, [board.columns, searchQuery]);
+  }, [board.columns, searchQuery, selectedTags]);
 
   const totalCards = board.columns.reduce((acc, col) => acc + col.cards.length, 0);
   const filteredCardCount = filteredColumns.reduce((acc, col) => acc + col.cards.length, 0);
+  const isFiltering = searchQuery.trim().length > 0 || selectedTags.length > 0;
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedTags([]);
+  };
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -115,16 +158,73 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
           <div>
             <h1 className="text-2xl font-bold text-foreground">{board.name}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {searchQuery
+              {isFiltering
                 ? `${filteredCardCount} de ${totalCards} cards`
                 : `${totalCards} cards em ${board.columns.length} colunas`}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Filtrar
-            </Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={selectedTags.length > 0 ? 'default' : 'outline'}
+                  size="sm"
+                  className="relative"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtrar
+                  {selectedTags.length > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                    >
+                      {selectedTags.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0 bg-popover" align="end">
+                <div className="p-3 border-b border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">Filtrar por Etiqueta</span>
+                    </div>
+                    {selectedTags.length > 0 && (
+                      <button
+                        onClick={clearFilters}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-2 max-h-64 overflow-y-auto">
+                  {allTags.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma etiqueta encontrada
+                    </p>
+                  ) : (
+                    <div className="space-y-1">
+                      {allTags.map((tag) => (
+                        <label
+                          key={tag}
+                          className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedTags.includes(tag)}
+                            onCheckedChange={() => toggleTag(tag)}
+                          />
+                          <span className="text-sm">{tag}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button size="sm" onClick={() => setIsNewCardModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Novo Card
