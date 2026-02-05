@@ -2,6 +2,7 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { Plus, Search, Filter, X } from 'lucide-react';
 import { KanbanColumn } from './KanbanColumn';
 import { CardModal } from './CardModal';
+import { NewCardModal } from './NewCardModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KanbanBoard as KanbanBoardType, KanbanCard } from '@/types/kanban';
@@ -19,6 +20,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingColumn, setIsAddingColumn] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [isNewCardModalOpen, setIsNewCardModalOpen] = useState(false);
   const columnInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
               <Filter className="w-4 h-4 mr-2" />
               Filtrar
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={() => setIsNewCardModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Novo Card
             </Button>
@@ -203,6 +205,13 @@ export function KanbanBoard({ board }: KanbanBoardProps) {
         card={currentCard}
         open={isModalOpen}
         onClose={handleCloseModal}
+      />
+
+      {/* New Card Modal */}
+      <NewCardModal
+        open={isNewCardModalOpen}
+        onClose={() => setIsNewCardModalOpen(false)}
+        columns={board.columns}
       />
     </div>
   );
