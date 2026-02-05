@@ -22,8 +22,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
-  Calendar,
   User,
   Flag,
   Plus,
@@ -34,11 +35,14 @@ import {
   List,
   CheckSquare,
   Trash2,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import { KanbanCard, FieldDefinition, FieldType, FieldValue } from '@/types/kanban';
 import { useKanbanStore } from '@/store/kanbanStore';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface CardModalProps {
   card: KanbanCard | null;
@@ -157,17 +161,36 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
         );
       case 'date':
         return (
-          <Input
-            type="date"
-            value={(value as string) || ''}
-            onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
-            className="h-8 flex-1"
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'h-8 flex-1 justify-start text-left font-normal',
+                  !value && 'text-muted-foreground'
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {value ? format(parseISO(value as string), 'PPP', { locale: ptBR }) : 'Selecione...'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <CalendarComponent
+                mode="single"
+                selected={value ? parseISO(value as string) : undefined}
+                onSelect={(date) =>
+                  handleFieldValueChange(field.id, date ? format(date, 'yyyy-MM-dd') : null)
+                }
+                locale={ptBR}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         );
       case 'checkbox':
         return (
-          <div className="flex items-center gap-2 flex-1">
-            <Checkbox
+          <div className="flex items-center gap-3 flex-1">
+            <Switch
               checked={Boolean(value)}
               onCheckedChange={(checked) => handleFieldValueChange(field.id, checked)}
             />
@@ -271,15 +294,36 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
             {/* Due Date */}
             <div>
               <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
+                <CalendarIcon className="w-4 h-4" />
                 Data de Entrega
               </h4>
-              <Input
-                type="date"
-                value={card.dueDate || ''}
-                onChange={(e) => handleDueDateChange(e.target.value)}
-                className="h-9"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full h-9 justify-start text-left font-normal',
+                      !card.dueDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {card.dueDate
+                      ? format(parseISO(card.dueDate), 'PPP', { locale: ptBR })
+                      : 'Selecione...'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={card.dueDate ? parseISO(card.dueDate) : undefined}
+                    onSelect={(date) =>
+                      handleDueDateChange(date ? format(date, 'yyyy-MM-dd') : '')
+                    }
+                    locale={ptBR}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Priority */}
