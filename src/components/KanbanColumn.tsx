@@ -88,7 +88,7 @@ export function KanbanColumn({ column, onCardClick, fieldDefinitions = [] }: Kan
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={cn(
-              'kanban-column flex-1 rounded-b-xl border border-t-0 border-border kanban-scroll overflow-y-auto',
+              'kanban-column flex-1 border border-t-0 border-b-0 border-border kanban-scroll overflow-y-auto',
               snapshot.isDraggingOver && 'bg-primary/5 border-primary/30'
             )}
           >
@@ -104,37 +104,38 @@ export function KanbanColumn({ column, onCardClick, fieldDefinitions = [] }: Kan
               ))}
               {provided.placeholder}
             </div>
-
-            {/* Quick Add Card */}
-            <div className="p-2">
-              {isAddingCard ? (
-                <div className="space-y-2">
-                  <Textarea
-                    ref={textareaRef}
-                    value={newCardTitle}
-                    onChange={(e) => setNewCardTitle(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    onBlur={handleBlur}
-                    placeholder="Digite o título do card..."
-                    className="min-h-[60px] resize-none bg-background"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Enter para criar • Esc para cancelar
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsAddingCard(true)}
-                  className="w-full p-2 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar Card</span>
-                </button>
-              )}
-            </div>
           </div>
         )}
       </Droppable>
+
+      {/* Quick Add Card - Outside Droppable for reliable click handling */}
+      <div className="bg-card rounded-b-xl border border-t-0 border-border p-2">
+        {isAddingCard ? (
+          <div className="space-y-2">
+            <Textarea
+              ref={textareaRef}
+              value={newCardTitle}
+              onChange={(e) => setNewCardTitle(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleBlur}
+              placeholder="Digite o título do card..."
+              className="min-h-[60px] resize-none bg-background"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter para criar • Esc para cancelar
+            </p>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsAddingCard(true)}
+            className="w-full p-2 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar Card</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
