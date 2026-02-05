@@ -1,8 +1,10 @@
-import { Calendar, User, Flag } from 'lucide-react';
+import { Calendar, User, Flag, Check, X as XIcon } from 'lucide-react';
 import { KanbanCard as KanbanCardType, FieldDefinition } from '@/types/kanban';
 import { cn } from '@/lib/utils';
 import { Draggable } from '@hello-pangea/dnd';
 import { CheckSquare, Hash, Type, CalendarDays, List } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface KanbanCardProps {
   card: KanbanCardType;
@@ -35,6 +37,15 @@ const fieldTypeIcons = {
   date: CalendarDays,
   select: List,
   checkbox: CheckSquare,
+};
+
+// Colors for custom field badges based on field type
+const fieldBadgeColors: Record<string, string> = {
+  text: 'bg-blue-100 text-blue-700 border-blue-200',
+  number: 'bg-purple-100 text-purple-700 border-purple-200',
+  date: 'bg-amber-100 text-amber-700 border-amber-200',
+  select: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  checkbox: 'bg-pink-100 text-pink-700 border-pink-200',
 };
 
 export function KanbanCard({ card, index, onClick, fieldDefinitions = [] }: KanbanCardProps) {
@@ -91,13 +102,18 @@ export function KanbanCard({ card, index, onClick, fieldDefinitions = [] }: Kanb
               {visibleFields.map((field) => {
                 const value = card.fieldValues?.[field.id];
                 const Icon = fieldTypeIcons[field.type];
+                const badgeColor = fieldBadgeColors[field.type] || 'bg-muted text-muted-foreground border-muted';
                 
                 // Format value based on type
                 let displayValue: string;
                 if (field.type === 'checkbox') {
-                  displayValue = value ? '✓' : '✗';
+                  displayValue = value ? 'Sim' : 'Não';
                 } else if (field.type === 'date' && value) {
-                  displayValue = new Date(value as string).toLocaleDateString('pt-BR');
+                  try {
+                    displayValue = format(parseISO(value as string), 'dd/MM', { locale: ptBR });
+                  } catch {
+                    displayValue = String(value);
+                  }
                 } else {
                   displayValue = String(value);
                 }
@@ -105,9 +121,16 @@ export function KanbanCard({ card, index, onClick, fieldDefinitions = [] }: Kanb
                 return (
                   <span
                     key={field.id}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-primary/10 text-primary border border-primary/20"
+                    className={cn(
+                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border font-medium',
+                      badgeColor
+                    )}
                   >
-                    <Icon className="w-3 h-3" />
+                    {field.type === 'checkbox' ? (
+                      value ? <Check className="w-3 h-3" /> : <XIcon className="w-3 h-3" />
+                    ) : (
+                      <Icon className="w-3 h-3" />
+                    )}
                     <span className="font-medium truncate max-w-[80px]" title={`${field.name}: ${displayValue}`}>
                       {displayValue}
                     </span>
