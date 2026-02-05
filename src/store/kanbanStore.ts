@@ -144,6 +144,12 @@ interface KanbanState {
   
   // Card field value actions
   setCardFieldValue: (cardId: string, fieldId: string, value: FieldValue) => void;
+  
+  // Column actions
+  addColumn: (boardId: string, title: string) => void;
+  
+  // Card creation actions
+  addCard: (columnId: string, title: string) => void;
 }
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
@@ -298,6 +304,48 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
                 : card
             ),
           })),
+        })),
+      })),
+    }));
+  },
+  
+  addColumn: (boardId, title) => {
+    const newColumn: KanbanColumn = {
+      id: `column-${Date.now()}`,
+      title,
+      color: 'slate',
+      cards: [],
+    };
+    
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) =>
+          board.id === boardId
+            ? { ...board, columns: [...board.columns, newColumn] }
+            : board
+        ),
+      })),
+    }));
+  },
+  
+  addCard: (columnId, title) => {
+    const newCard: KanbanCard = {
+      id: `card-${Date.now()}`,
+      title,
+      fieldValues: {},
+    };
+    
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) => ({
+          ...board,
+          columns: board.columns.map((column) =>
+            column.id === columnId
+              ? { ...column, cards: [...column.cards, newCard] }
+              : column
+          ),
         })),
       })),
     }));
