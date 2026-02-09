@@ -150,6 +150,11 @@ interface KanbanState {
   
   // Card creation actions
   addCard: (columnId: string, title: string) => void;
+  
+  // Tag actions
+  addTagToCard: (cardId: string, tagName: string) => void;
+  removeTagFromCard: (cardId: string, tagName: string) => void;
+  getAllTags: () => string[];
 }
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
@@ -349,5 +354,62 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         })),
       })),
     }));
+  },
+  
+  addTagToCard: (cardId, tagName) => {
+    const tag = tagName.trim().toLowerCase();
+    if (!tag) return;
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) => ({
+          ...board,
+          columns: board.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) => {
+              if (card.id !== cardId) return card;
+              const current = card.labels || [];
+              if (current.includes(tag) || current.length >= 10) return card;
+              return { ...card, labels: [...current, tag] };
+            }),
+          })),
+        })),
+      })),
+    }));
+  },
+  
+  removeTagFromCard: (cardId, tagName) => {
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) => ({
+          ...board,
+          columns: board.columns.map((column) => ({
+            ...column,
+            cards: column.cards.map((card) =>
+              card.id === cardId
+                ? { ...card, labels: (card.labels || []).filter((l) => l !== tagName) }
+                : card
+            ),
+          })),
+        })),
+      })),
+    }));
+  },
+  
+  getAllTags: () => {
+    const { workspaces, activeBoard } = get();
+    const tags = new Set<string>();
+    for (const workspace of workspaces) {
+      const board = workspace.boards.find((b) => b.id === activeBoard);
+      if (board) {
+        for (const col of board.columns) {
+          for (const card of col.cards) {
+            card.labels?.forEach((l) => tags.add(l));
+          }
+        }
+      }
+    }
+    return Array.from(tags).sort();
   },
 }));

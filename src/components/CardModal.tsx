@@ -84,13 +84,38 @@ const fieldTypeLabels: Record<FieldType, string> = {
   checkbox: 'Checkbox',
 };
 
+// Generate a consistent pastel color from a string
+function getTagColor(tag: string): string {
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) {
+    hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colors = [
+    'bg-purple-100 text-purple-700 hover:bg-purple-200',
+    'bg-blue-100 text-blue-700 hover:bg-blue-200',
+    'bg-pink-100 text-pink-700 hover:bg-pink-200',
+    'bg-indigo-100 text-indigo-700 hover:bg-indigo-200',
+    'bg-cyan-100 text-cyan-700 hover:bg-cyan-200',
+    'bg-teal-100 text-teal-700 hover:bg-teal-200',
+    'bg-emerald-100 text-emerald-700 hover:bg-emerald-200',
+    'bg-orange-100 text-orange-700 hover:bg-orange-200',
+    'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
+    'bg-rose-100 text-rose-700 hover:bg-rose-200',
+    'bg-lime-100 text-lime-700 hover:bg-lime-200',
+    'bg-sky-100 text-sky-700 hover:bg-sky-200',
+  ];
+  return labelColors[tag] || colors[Math.abs(hash) % colors.length];
+}
+
 export function CardModal({ card, open, onClose }: CardModalProps) {
-  const { getCurrentBoard, addFieldDefinition, setCardFieldValue, updateCard, deleteFieldDefinition } = useKanbanStore();
+  const { getCurrentBoard, addFieldDefinition, setCardFieldValue, updateCard, deleteFieldDefinition, addTagToCard, removeTagFromCard, getAllTags } = useKanbanStore();
   const [isAddingField, setIsAddingField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<FieldType>('text');
   const [newFieldOptions, setNewFieldOptions] = useState('');
   const [showOnCard, setShowOnCard] = useState(true);
+  const [isAddingTag, setIsAddingTag] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
 
   const board = getCurrentBoard();
 
@@ -237,24 +262,104 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
             <h4 className="text-sm font-medium text-muted-foreground mb-2">
               Etiquetas
             </h4>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               {card.labels?.map((label) => (
                 <Badge
                   key={label}
                   variant="secondary"
                   className={cn(
-                    'cursor-pointer transition-colors',
-                    labelColors[label]
+                    'cursor-pointer transition-all group/tag',
+                    getTagColor(label)
                   )}
                 >
                   {label}
-                  <X className="w-3 h-3 ml-1" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTagFromCard(card.id, label);
+                    }}
+                    className="ml-1 rounded-full hover:bg-black/10 p-0.5 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
                 </Badge>
               ))}
-              <Button variant="outline" size="sm" className="h-6 text-xs">
-                <Plus className="w-3 h-3 mr-1" />
-                Adicionar
-              </Button>
+              {(card.labels?.length || 0) < 10 && (
+                <Popover open={isAddingTag} onOpenChange={setIsAddingTag}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 text-xs">
+                      <Plus className="w-3 h-3 mr-1" />
+                      Adicionar
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-3" align="start">
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm">Adicionar Etiqueta</h4>
+                      
+                      {/* Existing tags from board */}
+                      {(() => {
+                        const allTags = getAllTags();
+                        const available = allTags.filter((t) => !card.labels?.includes(t));
+                        if (available.length === 0) return null;
+                        return (
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1.5 block">Existentes</label>
+                            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                              {available.map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="secondary"
+                                  className={cn('cursor-pointer transition-all text-xs', getTagColor(tag))}
+                                  onClick={() => {
+                                    addTagToCard(card.id, tag);
+                                    setIsAddingTag(false);
+                                  }}
+                                >
+                                  <Plus className="w-3 h-3 mr-0.5" />
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Create new tag */}
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">Nova etiqueta</label>
+                        <div className="flex gap-1.5">
+                          <Input
+                            value={newTagName}
+                            onChange={(e) => setNewTagName(e.target.value)}
+                            placeholder="Ex: urgente"
+                            className="h-8 text-sm"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newTagName.trim()) {
+                                addTagToCard(card.id, newTagName);
+                                setNewTagName('');
+                                setIsAddingTag(false);
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            className="h-8 px-3"
+                            disabled={!newTagName.trim()}
+                            onClick={() => {
+                              addTagToCard(card.id, newTagName);
+                              setNewTagName('');
+                              setIsAddingTag(false);
+                            }}
+                          >
+                            Criar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
           </div>
 
