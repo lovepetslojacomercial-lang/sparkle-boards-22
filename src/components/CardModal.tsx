@@ -36,12 +36,14 @@ import {
   CheckSquare,
   Trash2,
   Calendar as CalendarIcon,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 import { KanbanCard, FieldDefinition, FieldType, FieldValue } from '@/types/kanban';
 import { useKanbanStore } from '@/store/kanbanStore';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface CardModalProps {
@@ -158,8 +160,29 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
   };
 
   const handleDueDateChange = (dueDate: string) => {
-    updateCard(card.id, { dueDate });
+    updateCard(card.id, { dueDate, dueComplete: false });
   };
+
+  const handleDueCompleteToggle = (checked: boolean) => {
+    updateCard(card.id, { dueComplete: checked });
+  };
+
+  const handleRemoveDueDate = () => {
+    updateCard(card.id, { dueDate: undefined, dueComplete: undefined });
+  };
+
+  // Due date status logic
+  const getDueDateStatus = () => {
+    if (!card.dueDate) return null;
+    if (card.dueComplete) return 'complete';
+    const date = parseISO(card.dueDate);
+    if (isPast(date) && !isToday(date)) return 'overdue';
+    const daysLeft = differenceInDays(date, new Date());
+    if (daysLeft <= 2) return 'warning';
+    return 'normal';
+  };
+
+  const dueDateStatus = getDueDateStatus();
 
   const renderFieldInput = (field: FieldDefinition) => {
     const value = card.fieldValues?.[field.id];
@@ -401,34 +424,65 @@ export function CardModal({ card, open, onClose }: CardModalProps) {
               <h4 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
                 <CalendarIcon className="w-4 h-4" />
                 Data de Entrega
+                {dueDateStatus === 'overdue' && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                {dueDateStatus === 'complete' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
               </h4>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      'w-full h-9 justify-start text-left font-normal',
-                      !card.dueDate && 'text-muted-foreground'
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {card.dueDate
-                      ? format(parseISO(card.dueDate), 'PPP', { locale: ptBR })
-                      : 'Selecione...'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={card.dueDate ? parseISO(card.dueDate) : undefined}
-                    onSelect={(date) =>
-                      handleDueDateChange(date ? format(date, 'yyyy-MM-dd') : '')
-                    }
-                    locale={ptBR}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="space-y-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full h-9 justify-start text-left font-normal',
+                        !card.dueDate && 'text-muted-foreground',
+                        dueDateStatus === 'overdue' && 'border-red-300 text-red-600 bg-red-50 hover:bg-red-100',
+                        dueDateStatus === 'warning' && 'border-amber-300 text-amber-600 bg-amber-50 hover:bg-amber-100',
+                        dueDateStatus === 'complete' && 'border-emerald-300 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 line-through'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {card.dueDate
+                        ? format(parseISO(card.dueDate), 'PPP', { locale: ptBR })
+                        : 'Selecione...'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={card.dueDate ? parseISO(card.dueDate) : undefined}
+                      onSelect={(date) =>
+                        handleDueDateChange(date ? format(date, 'yyyy-MM-dd') : '')
+                      }
+                      locale={ptBR}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {card.dueDate && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="dueComplete"
+                        checked={card.dueComplete || false}
+                        onCheckedChange={handleDueCompleteToggle}
+                      />
+                      <label htmlFor="dueComplete" className="text-xs text-muted-foreground cursor-pointer">
+                        Prazo concluído
+                      </label>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={handleRemoveDueDate}
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Remover data
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Priority */}

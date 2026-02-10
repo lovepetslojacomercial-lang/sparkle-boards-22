@@ -6,6 +6,7 @@ export interface KanbanCard {
   priority?: 'low' | 'medium' | 'high';
   assignee?: string;
   dueDate?: string;
+  dueComplete?: boolean;
   fieldValues?: Record<string, FieldValue>; // fieldDefinitionId -> value
 }
 

@@ -1,9 +1,9 @@
-import { Calendar, User, Flag, Check, X as XIcon } from 'lucide-react';
+import { Calendar, User, Flag, Check, X as XIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { KanbanCard as KanbanCardType, FieldDefinition } from '@/types/kanban';
 import { cn } from '@/lib/utils';
 import { Draggable } from '@hello-pangea/dnd';
 import { CheckSquare, Hash, Type, CalendarDays, List } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface KanbanCardProps {
@@ -175,12 +175,26 @@ export function KanbanCard({ card, index, onClick, fieldDefinitions = [] }: Kanb
                   <Flag className="w-3 h-3" />
                 </span>
               )}
-              {card.dueDate && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  {new Date(card.dueDate).toLocaleDateString('pt-BR')}
-                </span>
-              )}
+              {card.dueDate && (() => {
+                const date = parseISO(card.dueDate);
+                const isComplete = card.dueComplete;
+                const isOverdue = !isComplete && isPast(date) && !isToday(date);
+                const isWarning = !isComplete && !isOverdue && differenceInDays(date, new Date()) <= 2;
+                return (
+                  <span className={cn(
+                    'flex items-center gap-1 px-1.5 py-0.5 rounded',
+                    isComplete && 'bg-emerald-100 text-emerald-700 line-through',
+                    isOverdue && 'bg-red-100 text-red-700',
+                    isWarning && 'bg-amber-100 text-amber-700',
+                    !isComplete && !isOverdue && !isWarning && 'text-muted-foreground'
+                  )}>
+                    {isOverdue ? <AlertTriangle className="w-3 h-3" /> : 
+                     isComplete ? <CheckCircle2 className="w-3 h-3" /> :
+                     <Calendar className="w-3 h-3" />}
+                    {format(date, 'dd/MM', { locale: ptBR })}
+                  </span>
+                );
+              })()}
             </div>
             {card.assignee && (
               <div className="flex items-center gap-1">
