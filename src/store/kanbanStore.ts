@@ -1,7 +1,17 @@
 import { create } from 'zustand';
-import { KanbanBoard, KanbanCard, KanbanColumn, FieldDefinition, FieldValue, FieldType, Workspace } from '@/types/kanban';
+import { KanbanBoard, KanbanCard, KanbanColumn, FieldDefinition, FieldValue, FieldType, Workspace, Label } from '@/types/kanban';
+import { DEFAULT_LABELS } from '@/lib/labelColors';
 
-// Initial mock data
+function createDefaultLabels(): Label[] {
+  return DEFAULT_LABELS.map((l, i) => ({
+    id: `label-default-${i + 1}`,
+    name: l.name,
+    color: l.color,
+  }));
+}
+
+const defaultLabels = createDefaultLabels();
+
 const initialFieldDefinitions: FieldDefinition[] = [
   { id: 'field-1', name: 'Estimativa (horas)', type: 'number', showOnCard: true },
   { id: 'field-2', name: 'Sprint', type: 'text', showOnCard: true },
@@ -12,7 +22,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-1',
     title: 'Configurar ambiente de desenvolvimento',
     description: 'Instalar dependências e configurar o projeto inicial com Vite + React + TypeScript.',
-    labels: ['setup', 'tech'],
+    labelIds: ['label-default-1', 'label-default-2'],
     priority: 'high',
     assignee: 'João Silva',
     fieldValues: { 'field-1': 4, 'field-2': 'Sprint 1' },
@@ -21,7 +31,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-2',
     title: 'Design do sistema de cores',
     description: 'Definir paleta de cores, tipografia e tokens do design system.',
-    labels: ['design', 'ui'],
+    labelIds: ['label-default-6'],
     priority: 'high',
     assignee: 'Maria Santos',
     fieldValues: { 'field-1': 2 },
@@ -30,7 +40,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-3',
     title: 'Implementar sidebar de navegação',
     description: 'Criar componente de sidebar com menu de workspaces e quadros.',
-    labels: ['frontend', 'component'],
+    labelIds: ['label-default-3'],
     priority: 'medium',
     assignee: 'Pedro Costa',
     fieldValues: {},
@@ -39,7 +49,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-4',
     title: 'Integrar drag and drop',
     description: 'Adicionar funcionalidade de arrastar e soltar cards entre colunas.',
-    labels: ['frontend', 'feature'],
+    labelIds: ['label-default-3'],
     priority: 'medium',
     assignee: 'João Silva',
     fieldValues: {},
@@ -48,7 +58,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-5',
     title: 'Criar modal de detalhes do card',
     description: 'Modal com informações completas do card, campos personalizados e ações.',
-    labels: ['frontend', 'ui'],
+    labelIds: ['label-default-4'],
     priority: 'low',
     assignee: 'Maria Santos',
     fieldValues: {},
@@ -57,7 +67,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-6',
     title: 'Documentação inicial',
     description: 'Escrever README com instruções de instalação e uso.',
-    labels: ['docs'],
+    labelIds: ['label-default-5'],
     priority: 'low',
     fieldValues: {},
   },
@@ -65,7 +75,7 @@ const initialCards: KanbanCard[] = [
     id: 'card-7',
     title: 'Testes unitários dos componentes',
     description: 'Criar testes para os principais componentes da aplicação.',
-    labels: ['testing', 'tech'],
+    labelIds: ['label-default-2'],
     priority: 'medium',
     assignee: 'Pedro Costa',
     fieldValues: {},
@@ -98,6 +108,7 @@ const initialBoard: KanbanBoard = {
   name: 'Projeto Teste',
   columns: initialColumns,
   fieldDefinitions: initialFieldDefinitions,
+  labels: defaultLabels,
 };
 
 const initialWorkspaces: Workspace[] = [
@@ -106,15 +117,15 @@ const initialWorkspaces: Workspace[] = [
     name: 'Minha Empresa',
     boards: [
       initialBoard,
-      { id: 'board-2', name: 'Marketing Q1', columns: [], fieldDefinitions: [] },
-      { id: 'board-3', name: 'Roadmap Produto', columns: [], fieldDefinitions: [] },
+      { id: 'board-2', name: 'Marketing Q1', columns: [], fieldDefinitions: [], labels: createDefaultLabels() },
+      { id: 'board-3', name: 'Roadmap Produto', columns: [], fieldDefinitions: [], labels: createDefaultLabels() },
     ],
   },
   {
     id: 'workspace-2',
     name: 'Projetos Pessoais',
     boards: [
-      { id: 'board-4', name: 'Casa Nova', columns: [], fieldDefinitions: [] },
+      { id: 'board-4', name: 'Casa Nova', columns: [], fieldDefinitions: [], labels: createDefaultLabels() },
     ],
   },
 ];
@@ -128,13 +139,7 @@ interface KanbanState {
   getCurrentBoard: () => KanbanBoard | undefined;
   
   // Column/Card actions
-  moveCard: (
-    cardId: string,
-    sourceColumnId: string,
-    destColumnId: string,
-    sourceIndex: number,
-    destIndex: number
-  ) => void;
+  moveCard: (cardId: string, sourceColumnId: string, destColumnId: string, sourceIndex: number, destIndex: number) => void;
   updateCard: (cardId: string, updates: Partial<KanbanCard>) => void;
   
   // Field Definition actions (board-level)
@@ -151,10 +156,13 @@ interface KanbanState {
   // Card creation actions
   addCard: (columnId: string, title: string) => void;
   
-  // Tag actions
-  addTagToCard: (cardId: string, tagName: string) => void;
-  removeTagFromCard: (cardId: string, tagName: string) => void;
-  getAllTags: () => string[];
+  // Label actions (board-level)
+  addLabel: (boardId: string, label: Omit<Label, 'id'>) => void;
+  updateLabel: (boardId: string, labelId: string, updates: Partial<Omit<Label, 'id'>>) => void;
+  deleteLabel: (boardId: string, labelId: string) => void;
+  
+  // Card label actions
+  toggleCardLabel: (cardId: string, labelId: string) => void;
 }
 
 export const useKanbanStore = create<KanbanState>((set, get) => ({
@@ -178,32 +186,20 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ...workspace,
         boards: workspace.boards.map((board) => {
           if (board.id !== state.activeBoard) return board;
-          
           const sourceCol = board.columns.find((c) => c.id === sourceColumnId);
           const destCol = board.columns.find((c) => c.id === destColumnId);
           if (!sourceCol || !destCol) return board;
-          
           const card = sourceCol.cards.find((c) => c.id === cardId);
           if (!card) return board;
-          
           if (sourceColumnId === destColumnId) {
-            // Reorder within same column
             const newCards = [...sourceCol.cards];
             newCards.splice(sourceIndex, 1);
             newCards.splice(destIndex, 0, card);
-            
-            return {
-              ...board,
-              columns: board.columns.map((col) =>
-                col.id === sourceColumnId ? { ...col, cards: newCards } : col
-              ),
-            };
+            return { ...board, columns: board.columns.map((col) => col.id === sourceColumnId ? { ...col, cards: newCards } : col) };
           } else {
-            // Move between columns
             const sourceCards = sourceCol.cards.filter((c) => c.id !== cardId);
             const destCards = [...destCol.cards];
             destCards.splice(destIndex, 0, card);
-            
             return {
               ...board,
               columns: board.columns.map((col) => {
@@ -215,7 +211,6 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           }
         }),
       }));
-      
       return { workspaces: newWorkspaces };
     });
   },
@@ -228,9 +223,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
           ...board,
           columns: board.columns.map((column) => ({
             ...column,
-            cards: column.cards.map((card) =>
-              card.id === cardId ? { ...card, ...updates } : card
-            ),
+            cards: column.cards.map((card) => card.id === cardId ? { ...card, ...updates } : card),
           })),
         })),
       })),
@@ -238,18 +231,12 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   },
   
   addFieldDefinition: (boardId, field) => {
-    const newField: FieldDefinition = {
-      ...field,
-      id: `field-${Date.now()}`,
-    };
-    
+    const newField: FieldDefinition = { ...field, id: `field-${Date.now()}` };
     set((state) => ({
       workspaces: state.workspaces.map((workspace) => ({
         ...workspace,
         boards: workspace.boards.map((board) =>
-          board.id === boardId
-            ? { ...board, fieldDefinitions: [...board.fieldDefinitions, newField] }
-            : board
+          board.id === boardId ? { ...board, fieldDefinitions: [...board.fieldDefinitions, newField] } : board
         ),
       })),
     }));
@@ -261,12 +248,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ...workspace,
         boards: workspace.boards.map((board) =>
           board.id === boardId
-            ? {
-                ...board,
-                fieldDefinitions: board.fieldDefinitions.map((f) =>
-                  f.id === fieldId ? { ...f, ...updates } : f
-                ),
-              }
+            ? { ...board, fieldDefinitions: board.fieldDefinitions.map((f) => f.id === fieldId ? { ...f, ...updates } : f) }
             : board
         ),
       })),
@@ -279,10 +261,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         ...workspace,
         boards: workspace.boards.map((board) =>
           board.id === boardId
-            ? {
-                ...board,
-                fieldDefinitions: board.fieldDefinitions.filter((f) => f.id !== fieldId),
-              }
+            ? { ...board, fieldDefinitions: board.fieldDefinitions.filter((f) => f.id !== fieldId) }
             : board
         ),
       })),
@@ -299,13 +278,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             ...column,
             cards: column.cards.map((card) =>
               card.id === cardId
-                ? {
-                    ...card,
-                    fieldValues: {
-                      ...card.fieldValues,
-                      [fieldId]: value,
-                    },
-                  }
+                ? { ...card, fieldValues: { ...card.fieldValues, [fieldId]: value } }
                 : card
             ),
           })),
@@ -315,50 +288,82 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   },
   
   addColumn: (boardId, title) => {
-    const newColumn: KanbanColumn = {
-      id: `column-${Date.now()}`,
-      title,
-      color: 'slate',
-      cards: [],
-    };
-    
+    const newColumn: KanbanColumn = { id: `column-${Date.now()}`, title, color: 'slate', cards: [] };
     set((state) => ({
       workspaces: state.workspaces.map((workspace) => ({
         ...workspace,
         boards: workspace.boards.map((board) =>
-          board.id === boardId
-            ? { ...board, columns: [...board.columns, newColumn] }
-            : board
+          board.id === boardId ? { ...board, columns: [...board.columns, newColumn] } : board
         ),
       })),
     }));
   },
   
   addCard: (columnId, title) => {
-    const newCard: KanbanCard = {
-      id: `card-${Date.now()}`,
-      title,
-      fieldValues: {},
-    };
-    
+    const newCard: KanbanCard = { id: `card-${Date.now()}`, title, fieldValues: {} };
     set((state) => ({
       workspaces: state.workspaces.map((workspace) => ({
         ...workspace,
         boards: workspace.boards.map((board) => ({
           ...board,
           columns: board.columns.map((column) =>
-            column.id === columnId
-              ? { ...column, cards: [...column.cards, newCard] }
-              : column
+            column.id === columnId ? { ...column, cards: [...column.cards, newCard] } : column
           ),
         })),
       })),
     }));
   },
   
-  addTagToCard: (cardId, tagName) => {
-    const tag = tagName.trim().toLowerCase();
-    if (!tag) return;
+  // Label CRUD
+  addLabel: (boardId, label) => {
+    const newLabel: Label = { ...label, id: `label-${Date.now()}` };
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) =>
+          board.id === boardId ? { ...board, labels: [...board.labels, newLabel] } : board
+        ),
+      })),
+    }));
+  },
+
+  updateLabel: (boardId, labelId, updates) => {
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) =>
+          board.id === boardId
+            ? { ...board, labels: board.labels.map((l) => l.id === labelId ? { ...l, ...updates } : l) }
+            : board
+        ),
+      })),
+    }));
+  },
+
+  deleteLabel: (boardId, labelId) => {
+    set((state) => ({
+      workspaces: state.workspaces.map((workspace) => ({
+        ...workspace,
+        boards: workspace.boards.map((board) => {
+          if (board.id !== boardId) return board;
+          return {
+            ...board,
+            labels: board.labels.filter((l) => l.id !== labelId),
+            // Also remove from all cards
+            columns: board.columns.map((col) => ({
+              ...col,
+              cards: col.cards.map((card) => ({
+                ...card,
+                labelIds: (card.labelIds || []).filter((id) => id !== labelId),
+              })),
+            })),
+          };
+        }),
+      })),
+    }));
+  },
+
+  toggleCardLabel: (cardId, labelId) => {
     set((state) => ({
       workspaces: state.workspaces.map((workspace) => ({
         ...workspace,
@@ -368,48 +373,13 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
             ...column,
             cards: column.cards.map((card) => {
               if (card.id !== cardId) return card;
-              const current = card.labels || [];
-              if (current.includes(tag) || current.length >= 10) return card;
-              return { ...card, labels: [...current, tag] };
+              const current = card.labelIds || [];
+              const has = current.includes(labelId);
+              return { ...card, labelIds: has ? current.filter((id) => id !== labelId) : [...current, labelId] };
             }),
           })),
         })),
       })),
     }));
-  },
-  
-  removeTagFromCard: (cardId, tagName) => {
-    set((state) => ({
-      workspaces: state.workspaces.map((workspace) => ({
-        ...workspace,
-        boards: workspace.boards.map((board) => ({
-          ...board,
-          columns: board.columns.map((column) => ({
-            ...column,
-            cards: column.cards.map((card) =>
-              card.id === cardId
-                ? { ...card, labels: (card.labels || []).filter((l) => l !== tagName) }
-                : card
-            ),
-          })),
-        })),
-      })),
-    }));
-  },
-  
-  getAllTags: () => {
-    const { workspaces, activeBoard } = get();
-    const tags = new Set<string>();
-    for (const workspace of workspaces) {
-      const board = workspace.boards.find((b) => b.id === activeBoard);
-      if (board) {
-        for (const col of board.columns) {
-          for (const card of col.cards) {
-            card.labels?.forEach((l) => tags.add(l));
-          }
-        }
-      }
-    }
-    return Array.from(tags).sort();
   },
 }));

@@ -1,8 +1,14 @@
+export interface Label {
+  id: string;
+  name: string;
+  color: string; // tailwind color key like 'red', 'blue', 'purple', etc.
+}
+
 export interface KanbanCard {
   id: string;
   title: string;
   description?: string;
-  labels?: string[];
+  labelIds?: string[];
   priority?: 'low' | 'medium' | 'high';
   assignee?: string;
   dueDate?: string;
@@ -34,6 +40,7 @@ export interface KanbanBoard {
   name: string;
   columns: KanbanColumn[];
   fieldDefinitions: FieldDefinition[]; // Board-level custom fields
+  labels: Label[]; // Board-level labels
 }
 
 export interface Workspace {
