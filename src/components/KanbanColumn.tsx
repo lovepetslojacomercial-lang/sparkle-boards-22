@@ -1,6 +1,6 @@
 import { Droppable } from '@hello-pangea/dnd';
 import { MoreHorizontal } from 'lucide-react';
-import { KanbanColumn as KanbanColumnType, KanbanCard as KanbanCardType, FieldDefinition } from '@/types/kanban';
+import { KanbanColumn as KanbanColumnType, KanbanCard as KanbanCardType, FieldDefinition, Label } from '@/types/kanban';
 import { KanbanCard } from './KanbanCard';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ interface KanbanColumnProps {
   column: KanbanColumnType;
   onCardClick: (card: KanbanCardType) => void;
   fieldDefinitions?: FieldDefinition[];
+  boardLabels?: Label[];
 }
 
 const columnColors: Record<string, string> = {
@@ -16,7 +17,7 @@ const columnColors: Record<string, string> = {
   green: 'border-t-primary',
 };
 
-export function KanbanColumn({ column, onCardClick, fieldDefinitions = [] }: KanbanColumnProps) {
+export function KanbanColumn({ column, onCardClick, fieldDefinitions = [], boardLabels = [] }: KanbanColumnProps) {
   return (
     <div className="flex flex-col w-80 flex-shrink-0">
       {/* Column Header */}
@@ -61,6 +62,7 @@ export function KanbanColumn({ column, onCardClick, fieldDefinitions = [] }: Kan
                   index={index}
                   onClick={() => onCardClick(card)}
                   fieldDefinitions={fieldDefinitions}
+                  boardLabels={boardLabels}
                 />
               ))}
               {provided.placeholder}
