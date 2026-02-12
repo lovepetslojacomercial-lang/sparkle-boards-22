@@ -41,7 +41,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>(['workspace-1']);
-  const { workspaces, addWorkspace, addBoard, deleteBoard } = useKanbanStore();
+  const { workspaces, addWorkspace, addBoard, deleteBoard, deleteWorkspace } = useKanbanStore();
 
   // Modal states
   const [showNewWorkspace, setShowNewWorkspace] = useState(false);
@@ -52,6 +52,7 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
   const [boardName, setBoardName] = useState('');
 
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const toggleWorkspace = (workspaceId: string) => {
     setExpandedWorkspaces((prev) =>
@@ -83,6 +84,13 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
     setBoardName('');
     setShowNewBoard(false);
     toast.success('Quadro criado com sucesso!');
+  };
+
+  const handleDeleteWorkspace = () => {
+    if (!workspaceToDelete) return;
+    deleteWorkspace(workspaceToDelete.id);
+    setWorkspaceToDelete(null);
+    toast.success('Workspace deletado com sucesso!');
   };
 
   const handleDeleteBoard = () => {
@@ -134,18 +142,30 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
 
             {workspaces.map((workspace) => (
               <div key={workspace.id} className="space-y-0.5">
-                <button
-                  onClick={() => toggleWorkspace(workspace.id)}
-                  className="sidebar-nav-item w-full"
-                >
-                  {expandedWorkspaces.includes(workspace.id) ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                  <Folders className="w-4 h-4" />
-                  <span className="truncate">{workspace.name}</span>
-                </button>
+                <div className="group flex items-center gap-1">
+                  <button
+                    onClick={() => toggleWorkspace(workspace.id)}
+                    className="sidebar-nav-item flex-1"
+                  >
+                    {expandedWorkspaces.includes(workspace.id) ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                    <Folders className="w-4 h-4" />
+                    <span className="truncate">{workspace.name}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setWorkspaceToDelete({ id: workspace.id, name: workspace.name });
+                    }}
+                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-all"
+                    title="Deletar workspace"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                  </button>
+                </div>
 
                 {/* Boards within workspace */}
                 {expandedWorkspaces.includes(workspace.id) && (
@@ -270,6 +290,24 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteBoard} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Deletar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Workspace Confirmation */}
+      <AlertDialog open={!!workspaceToDelete} onOpenChange={(open) => !open && setWorkspaceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deletar workspace</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja deletar o workspace <strong>"{workspaceToDelete?.name}"</strong>? Todos os quadros, colunas e cards dentro dele serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteWorkspace} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Deletar
             </AlertDialogAction>
           </AlertDialogFooter>

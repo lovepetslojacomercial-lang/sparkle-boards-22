@@ -140,6 +140,7 @@ interface KanbanState {
   
   // Workspace actions
   addWorkspace: (name: string) => void;
+  deleteWorkspace: (workspaceId: string) => void;
   
   // Board CRUD actions
   addBoard: (workspaceId: string, name: string) => void;
@@ -187,6 +188,18 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     set((state) => ({ workspaces: [...state.workspaces, newWorkspace] }));
   },
   
+  deleteWorkspace: (workspaceId) => {
+    set((state) => {
+      const newWorkspaces = state.workspaces.filter((w) => w.id !== workspaceId);
+      const deletedWs = state.workspaces.find((w) => w.id === workspaceId);
+      const deletedBoardIds = deletedWs?.boards.map((b) => b.id) || [];
+      const newActive = deletedBoardIds.includes(state.activeBoard)
+        ? (newWorkspaces.flatMap((w) => w.boards)[0]?.id || '')
+        : state.activeBoard;
+      return { workspaces: newWorkspaces, activeBoard: newActive };
+    });
+  },
+
   addBoard: (workspaceId, name) => {
     const newBoard: KanbanBoard = {
       id: `board-${Date.now()}`,
