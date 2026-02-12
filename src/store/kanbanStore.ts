@@ -138,6 +138,13 @@ interface KanbanState {
   setActiveBoard: (boardId: string) => void;
   getCurrentBoard: () => KanbanBoard | undefined;
   
+  // Workspace actions
+  addWorkspace: (name: string) => void;
+  
+  // Board CRUD actions
+  addBoard: (workspaceId: string, name: string) => void;
+  deleteBoard: (boardId: string) => void;
+  
   // Column/Card actions
   moveCard: (cardId: string, sourceColumnId: string, destColumnId: string, sourceIndex: number, destIndex: number) => void;
   updateCard: (cardId: string, updates: Partial<KanbanCard>) => void;
@@ -170,6 +177,43 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   activeBoard: 'board-1',
   
   setActiveBoard: (boardId) => set({ activeBoard: boardId }),
+  
+  addWorkspace: (name) => {
+    const newWorkspace: Workspace = {
+      id: `workspace-${Date.now()}`,
+      name,
+      boards: [],
+    };
+    set((state) => ({ workspaces: [...state.workspaces, newWorkspace] }));
+  },
+  
+  addBoard: (workspaceId, name) => {
+    const newBoard: KanbanBoard = {
+      id: `board-${Date.now()}`,
+      name,
+      columns: [],
+      fieldDefinitions: [],
+      labels: createDefaultLabels(),
+    };
+    set((state) => ({
+      workspaces: state.workspaces.map((w) =>
+        w.id === workspaceId ? { ...w, boards: [...w.boards, newBoard] } : w
+      ),
+    }));
+  },
+  
+  deleteBoard: (boardId) => {
+    set((state) => {
+      const newWorkspaces = state.workspaces.map((w) => ({
+        ...w,
+        boards: w.boards.filter((b) => b.id !== boardId),
+      }));
+      const newActive = state.activeBoard === boardId
+        ? (newWorkspaces.flatMap((w) => w.boards)[0]?.id || '')
+        : state.activeBoard;
+      return { workspaces: newWorkspaces, activeBoard: newActive };
+    });
+  },
   
   getCurrentBoard: () => {
     const { workspaces, activeBoard } = get();
