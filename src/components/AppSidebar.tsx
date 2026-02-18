@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Folders,
@@ -40,6 +41,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
+  const navigate = useNavigate();
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>(['workspace-1']);
   const { workspaces, addWorkspace, addBoard, deleteBoard, deleteWorkspace } = useKanbanStore();
 
@@ -119,7 +121,7 @@ export function AppSidebar({ activeBoard, onBoardSelect }: AppSidebarProps) {
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {/* Quick Links */}
           <div className="mb-4">
-            <button className="sidebar-nav-item w-full">
+            <button onClick={() => navigate('/dashboard')} className="sidebar-nav-item w-full">
               <LayoutDashboard className="w-4 h-4" />
               <span>Dashboard</span>
             </button>
